@@ -28,9 +28,10 @@ This repository provides a comprehensive solution for setting up and managing a 
 ## Usage Instructions
 
 ### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/<your-username>/powerdns-ansible-terraform.git
-cd powerdns-ansible-terraform
+git clone https://github.com/arminbiklari/powerdns-cluster.git
+cd powerdns-cluster
 ```
 
 ### 2. How to run ansible playbook

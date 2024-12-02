@@ -1,0 +1,15 @@
+---
+- name: Restart PowerDNS
+  ansible.builtin.service:
+    name: pdns
+    state: restarted
+
+- name: Restart DnsDist
+  ansible.builtin.service:
+    name: dnsdist.service
+    state: restarted
+
+- name: Restart mysql
+  ansible.builtin.service:
+    name: mysql
+    state: restarted

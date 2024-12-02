@@ -1,0 +1,75 @@
+---
+- name: configuration of zones primary
+  block:
+    - name: Prepare DNS records for Terraform
+      set_fact:
+        dns_records: "{{ dns_records | default({}) | combine({ item.key: item.value }) }}"
+      loop: "{{ records | dict2items }}"
+
+    - name: Convert DNS records to Terraform format
+      set_fact:
+        terraform_dns_records: "{{ terraform_dns_records | default([]) + [{'zone': item.key, 'records': item.value}] }}"
+      loop: "{{ records | dict2items }}"
+
+    - name: Apply Terraform with PowerDNS zones primary
+      community.general.terraform:
+        project_path: "{{ role_path }}/files/terraform/primary/"
+        state: present
+        complex_vars: true
+        force_init: true
+        variables:
+          kind: Master
+          zones: "{{ zones }}"
+          pdns_server_url: "http://{{ ansible_host }}:8081"
+          pdns_api_key: "{{ pdns_api_key }}"
+          dns_records: "{{ terraform_dns_records }}" 
+        backend_config:
+          address: "{{ Primary_gitlab_project_url }}"
+          lock_address: "{{ Primary_gitlab_project_url }}/lock"
+          unlock_address: "{{ Primary_gitlab_project_url }}/lock"
+          username: "{{ gitlab_terraform_username }}"
+          password: "{{ gitlab_terraform_token }}"
+          lock_method: "POST"
+          unlock_method: "DELETE"
+          retry_wait_min: "5"
+          
+      delegate_to: localhost
+      diff: true
+      register: terraform_output
+    - debug:
+        var: terraform_output
+  when: inventory_hostname in groups['primary']
+  tags: pds_zone
+
+- name: configuration zones of secondaries
+  block:
+    - name: Apply Terraform with PowerDNS zones secondaries
+      community.general.terraform:
+        project_path: "{{ role_path }}/files/terraform/secondary/"
+        state: present
+        complex_vars: true
+        force_init: true
+        variables:
+          kind: Slave
+          masters: "{{ groups['primary'] | map('extract', hostvars, ['ansible_host']) | list }}"
+          zones: "{{ zones }}"
+          pdns_server_url: "http://{{ ansible_host }}:8081"
+          pdns_api_key: "{{ pdns_api_key }}"
+        backend_config:
+          address: "{{ secondary_gitlab_project_url }}"
+          lock_address: "{{ secondary_gitlab_project_url }}/lock"
+          unlock_address: "{{ secondary_gitlab_project_url }}/lock"
+          username: "{{ gitlab_terraform_username }}"
+          password: "{{ gitlab_terraform_token }}"
+          lock_method: "POST"
+          unlock_method: "DELETE"
+          retry_wait_min: "5"
+
+      delegate_to: localhost
+      diff: true
+      register: terraform_output
+
+    - debug:
+        var: terraform_output
+  when: inventory_hostname in groups['secondaries']
+  tags: pdns_zone

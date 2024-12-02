@@ -1,0 +1,18 @@
+---
+- name: configuration of dnsdist
+  block:
+    - name: SetUp DnsDist
+      ansible.builtin.template:
+       src: dnsdist.conf.j2
+       dest: /etc/dnsdist/dnsdist.conf
+       owner: root
+       group: root
+       mode: '0644'
+    - name: Start And Enable dnsdist Service
+      ansible.builtin.service:
+        name: dnsdist
+        state: restarted
+        enabled: yes
+  tags:
+    - pdns
+    - pdns-loadbalancer

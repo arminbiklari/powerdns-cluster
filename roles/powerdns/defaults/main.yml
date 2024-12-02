@@ -1,0 +1,156 @@
+######## Terraform State Backend configuration ########
+Primary_gitlab_project_url: "gitlab terraform state url"
+secondary_gitlab_project_url: "gitlab terraform state url"
+gitlab_terraform_username: "terraform_bot2"
+gitlab_terraform_token: ""
+
+
+########## PowerDNS repository variables ##############
+pdns_repo_url: "http://repo.powerdns.com/ubuntu"
+pdns_distribution: "jammy-auth-49"
+dnsdist_distribution: "jammy-dnsdist-19"
+pdns_component: "main"
+########## PowerDNS GPG key ###############
+pdns_gpg_key_url: "https://repo.powerdns.com/FD380FBB-pub.asc"
+
+pdns_webserver: yes
+pdns_api: yes
+
+########## Apt package installation Variables #########
+pdns_package: "pdns-server"
+pdns_backend_package: "pdns-backend-mysql"
+dnsdist_package: "dnsdist"
+
+########## MYSQL VARIABLES ##########
+
+mysql_daemon: mariadb
+mysql_slow_query_log_file: /var/log/mysql/mariadb-slow.log
+mysql_log_error: /var/log/mysql/mysql.log
+mysql_syslog_tag: mysqld
+mysql_pid_file: /var/run/mysqld/mysqld.pid
+mysql_socket: /var/lib/mysql/mysql.sock
+mysql_config_dir: /etc/mysql
+mysql_config_file: "{{ mysql_config_dir }}/my.cnf"
+mysql_config_include_dir: /etc/mysql/conf.d
+mysql_supports_innodb_large_prefix: true
+
+# Set this to the user ansible is logging in as - should have root
+# or sudo access
+mysql_user_home: /root
+mysql_user_name: root
+mysql_user_password: root
+
+# The default root user installed by mysql - almost always root
+mysql_root_home: /root
+mysql_root_username: root
+# mysql_root_password: somestrongpassword
+
+# Set this to `true` to forcibly update the root password.
+mysql_root_password_update: false
+mysql_user_password_update: false
+
+mysql_enabled_on_startup: true
+
+# Whether my.cnf should be updated on every run.
+overwrite_global_mycnf: true
+
+# The following variables have a default value depending on operating system.
+# mysql_config_file: /etc/my.cnf
+# mysql_config_include_dir: /etc/my.cnf.d
+
+# Pass in a comma-separated list of repos to use (e.g. "remi,epel"). Used only
+# for RedHat systems (and derivatives).
+mysql_enablerepo: ""
+
+mysql_python_package_debian: python3-mysqldb
+
+# MySQL connection settings.
+mysql_port: "3306"
+mysql_bind_address: '0.0.0.0'
+mysql_skip_name_resolve: true
+mysql_datadir: /var/lib/mysql
+mysql_sql_mode: ~
+
+
+# Log file settings.
+mysql_log_file_group: adm
+
+# Slow query log settings.
+mysql_slow_query_log_enabled: false
+mysql_slow_query_time: "2"
+# The following variable has a default value depending on operating system.
+# mysql_slow_query_log_file: /var/log/mysql-slow.log
+
+# Memory settings (default values optimized ~512MB RAM).
+mysql_key_buffer_size: "256M"
+mysql_max_allowed_packet: "64M"
+mysql_table_open_cache: "256"
+mysql_sort_buffer_size: "1M"
+mysql_read_buffer_size: "1M"
+mysql_read_rnd_buffer_size: "4M"
+mysql_myisam_sort_buffer_size: "64M"
+mysql_thread_cache_size: "8"
+mysql_query_cache_type: "0"
+mysql_query_cache_size: "16M"
+mysql_query_cache_limit: "1M"
+mysql_max_connections: "1000"
+mysql_tmp_table_size: "16M"
+mysql_max_heap_table_size: "16M"
+mysql_group_concat_max_len: "1024"
+mysql_join_buffer_size: "262144"
+
+# Other settings.
+mysql_lower_case_table_names: "0"
+mysql_wait_timeout: "28800"
+mysql_event_scheduler_state: "OFF"
+
+# InnoDB settings.
+mysql_innodb_file_per_table: "1"
+# Set .._buffer_pool_size up to 80% of RAM but beware of setting too high.
+mysql_innodb_buffer_pool_size: "256M"
+# Set .._log_file_size to 25% of buffer pool size.
+mysql_innodb_log_file_size: "64M"
+mysql_innodb_log_buffer_size: "8M"
+mysql_innodb_flush_log_at_trx_commit: "1"
+mysql_innodb_lock_wait_timeout: "50"
+
+# mysqldump settings.
+mysql_mysqldump_max_allowed_packet: "64M"
+
+# Logging settings.
+mysql_log: ""
+# The following variables have a default value depending on operating system.
+# mysql_log_error: /var/log/mysql/mysql.err
+# mysql_syslog_tag: mysql
+
+mysql_config_include_files: []
+#  - src: path/relative/to/playbook/file.cnf
+#  - { src: path/relative/to/playbook/anotherfile.cnf, force: yes }
+
+# Databases.
+mysql_databases: []
+#   - name: example
+#     collation: utf8_general_ci
+#     encoding: utf8
+#     replicate: 1
+
+# Users.
+mysql_users: []
+#   - name: example
+#     host: 127.0.0.1
+#     password: secret
+#     priv: *.*:USAGE
+
+mysql_disable_log_bin: true
+
+# Exporter
+mysql_exporter_tag: v0.14.0
+mysql_exporter_port: 9104
+mysql_exporter_user:
+mysql_exporter_enable: true
+
+mysql_privileged_user_creation: false
+mysql_privileged_user_username:
+mysql_privileged_user_password:
+mysql_privileged_user_host:
+mysql_privileged_user_privilege: "*.*:ALL,GRANT"

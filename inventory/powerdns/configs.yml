@@ -1,0 +1,24 @@
+dns:
+  hosts:
+    DNS-01:
+      ansible_host: 192.168.1.11
+    DNS-02:
+      ansible_host: 192.168.1.10
+  children:
+    primary:
+      hosts:
+        DevopsMGMT-DNS-01:
+    secondaries:
+      hosts:
+        DevopsMGMT-DNS-02:
+
+  vars:
+    mysql_installation: true
+    pdns_backend: mysql
+    pdns_api_key: "change ME"
+    pdns_mysql_password: "change ME"
+    pdns_mysql_user: pdns_usr
+    pdns_mysql_dbname: pdns_db
+    pdns_bind_address: "{{ ansible_host }}"
+    mysql_root_user_password: "change ME"
+    dnsdist_password: "change ME"

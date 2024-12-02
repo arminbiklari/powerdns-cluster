@@ -1,0 +1,28 @@
+---
+- name: Deploy PowerDNS
+  become: true
+  hosts: dns
+  tags: powerdns
+  tasks:
+    - name: Deploy
+      ansible.builtin.import_role:
+        name: powerdns
+        tasks_from: deploy
+    - name: config
+      ansible.builtin.import_role:
+        name: powerdns
+        tasks_from: config
+
+- name: configure zones PowerDNS
+  become: false
+  hosts: dns
+  tags: powerdns-mgmt
+  tasks:
+    - name: zones
+      ansible.builtin.import_role:
+        name: powerdns
+        tasks_from: zones
+    - name: loadbalancer
+      ansible.builtin.import_role:
+        name: powerdns
+        tasks_from: loadbalancer

@@ -1,0 +1,48 @@
+dns:
+  vars:
+    zones:
+      - example.ir
+      - foo.bar
+    # Variable to control whether DNS spoofing is enabled or not
+    spoof_enabled: true
+
+    # Key-value pairs for spoofed domains and their IPs
+    spoof_domains:
+      foobar.baz: 1.1.1.1 ## foobar.baz resolve 1.1.1.1
+
+
+    # List of recursors
+    recursors:    # this is forwarde option (the default dns routing)
+      - address: 8.8.8.8
+        name: Google
+      - address: 1.1.1.1
+        name: Cloudflare
+
+    custom_recursors:   # forward specific domains to specified ip
+      - zone: foobarbaz.com
+        addresses: 
+          - 1.2.3.4
+
+    records: # add records
+      foo.bar: # for domain foo.bar
+        - name: ns1.foo.nar
+          type: A
+          ttl: 300
+          records:
+            - 192.168.1.10
+        - name: ns2.foo.nar
+          type: A
+          ttl: 300
+          records:
+            - 192.168.1.11
+      example.ir: # for domain foo.bar
+        - name: ns1.example.ir
+          type: A
+          ttl: 300
+          records:
+            - 192.168.1.10
+        - name: ns2.example.ir
+          type: A
+          ttl: 300
+          records:
+            - 192.168.1.11

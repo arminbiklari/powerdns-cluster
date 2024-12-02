@@ -1,0 +1,103 @@
+setLocal("0.0.0.0:53")
+
+setRingBuffersSize(1000000, 100)
+setMaxTCPClientThreads(20)
+
+pc = newPacketCache(100000)
+getPool(""):setCache(pc)
+
+addAction(QClassRule(3), DropAction())
+
+webserver("0.0.0.0:8082")
+setWebserverConfig({password="{{ dnsdist_password }}", acl='0.0.0.0/0'})
+
+{%- for domain, ip in spoof_domains.items() %}
+{%- if not spoof_enabled %}
+
+--addAction("{{ domain }}", SpoofAction("{{ ip }}"))
+
+{%- else %}
+
+addAction("{{ domain }}", SpoofAction("{{ ip }}"))
+
+{%- endif %}
+
+{%- endfor %}
+
+
+{%- for host in groups['primary'] %}
+{%- if inventory_hostname in groups['primary'] %}
+
+newServer({address="{{ ansible_default_ipv4.address }}:5353", name="primary", pool={"primary"}})
+local sourceGroup = newNMG()
+
+{% for allow_host in groups['secondaries'] %}
+sourceGroup:addMask("{{ hostvars[allow_host].ansible_host }}/32")
+{%- endfor %}
+
+addAction(AndRule{NetmaskGroupRule(sourceGroup),OrRule({QTypeRule(DNSQType.SOA), QTypeRule(DNSQType.AXFR), QTypeRule(DNSQType.IXFR)})},PoolAction("primary"))
+
+
+{%- endif %}
+{%- endfor %}
+
+
+{%- for host in groups['secondaries'] %}
+{%- if inventory_hostname in groups['secondaries'] %}
+
+local sourceGroup = newNMG()
+
+{% for allow_host in groups['primary'] %}
+sourceGroup:addMask("{{ hostvars[allow_host].ansible_default_ipv4.address }}/32")
+{%- endfor %}
+
+addAction(AndRule({OpcodeRule(DNSOpcode.Notify), NotRule(NetmaskGroupRule(sourceGroup))}), RCodeAction(DNSRCode.REFUSED))
+
+{%- endif %}
+{%- endfor %}
+
+
+{%- for group, hosts in groups.items() if group in ['primary', 'secondaries'] %}
+
+{%- for host in hosts %}
+
+newServer({address="{{ hostvars[host].ansible_default_ipv4.address }}:5353", checkType="A", checkName="ns1.qcluster.org.", mustResolve=true, pool="authoritative"})
+
+{%- endfor %}
+
+{%- endfor %}
+
+
+{%- for recursor in recursors %}
+
+newServer({address="{{ recursor.address }}", name="{{ recursor.name }}", pool="recursor", maxCheckFailures=2})
+
+{%- endfor %}
+
+{%- for recursor in custom_recursors %}
+{%- for address in recursor.addresses %}
+
+newServer({address="{{ address }}", name="{{ recursor.zone }}", pool="{{ recursor.zone }}", maxCheckFailures=2})
+
+{%- endfor %}
+
+addAction("{{ recursor.zone }}", PoolAction("{{ recursor.zone }}"))
+
+{%-endfor %}
+
+{% if extra_pool is defined and extra_pool %}
+{% for pool in extra_pool %}
+-- Config for {{ pool.name }}
+{{ pool.config }}
+{% endfor %}
+{% endif %}
+
+setServerPolicy(leastOutstanding)
+
+{%- for zone in zones %}
+
+addAction("{{ zone }}", PoolAction("authoritative"))
+
+{%- endfor %}
+
+addAction(AllRule(), PoolAction("recursor"))

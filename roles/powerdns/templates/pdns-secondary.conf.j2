@@ -1,0 +1,38 @@
+include-dir=/etc/powerdns/pdns.d
+
+launch=gmysql
+gmysql-host={{ ansible_host }}
+gmysql-dbname={{ pdns_mysql_dbname }}
+gmysql-user={{ pdns_mysql_user }}
+gmysql-password={{ pdns_mysql_password }}
+
+webserver={{ pdns_webserver }}
+webserver-allow-from=0.0.0.0/0
+webserver-address=0.0.0.0
+webserver-port=8081
+
+api={{ pdns_api }}
+api-key={{ pdns_api_key }}
+
+secondary=yes
+autosecondary=yes
+primary=no
+xfr-cycle-interval=60
+
+allow-axfr-ips=127.0.0.1{%- for host in groups['primary'] + groups['secondaries'] %},{% if loop.first %}{% endif %}{{ hostvars[host].ansible_host }}{% endfor %}
+
+trusted-notification-proxy=127.0.0.1{%- for host in groups['primary'] + groups['secondaries'] %},{% if loop.first %}{% endif %}{{ hostvars[host].ansible_host }}{% endfor %}
+
+
+disable-axfr=no
+
+
+local-address={{ pdns_bind_address }}
+local-port=5353
+
+log-dns-details=no
+log-dns-queries=no
+loglevel=5
+default-soa-content=ns1.@ ns2.@ 0 15 3600 604800 5400
+resolver=127.0.0.1
+expand-alias=yes

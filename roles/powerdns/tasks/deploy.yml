@@ -1,0 +1,105 @@
+---
+- name: Create the directory for keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Create the file for keyrings
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/auth-49-pub.asc
+    state: touch
+    mode: '0644'
+- name: Ensure the GPG key for PowerDNS is installed
+  ansible.builtin.apt_key:
+    url: "{{ pdns_gpg_key_url }}"
+    state: present
+    keyring: /etc/apt/keyrings/auth-49-pub.asc
+
+- name: Ensure the apt preferences file exists (auth)
+  ansible.builtin.template:
+    src: auth-49.j2
+    dest: /etc/apt/preferences.d/dnsdist-19
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure the apt preferences file exists (dnsdist)
+  ansible.builtin.template:
+    src: dnsdist-19.j2
+    dest: /etc/apt/preferences.d/auth-49
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure PowerDNS repository is added
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/auth-49-pub.asc] {{ pdns_repo_url }} {{ pdns_distribution }} {{ pdns_component }}"
+    state: present
+
+- name: Ensure DnsDist repository is added
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/auth-49-pub.asc] {{ pdns_repo_url }} {{ dnsdist_distribution }} {{ pdns_component }}"
+    state: present
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install PowerDNS
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: latest
+  loop:
+    - "{{ pdns_package }}"
+    - "{{ pdns_backend_package }}"
+    - "{{ dnsdist_package }}"
+
+- name: Install MySQL backend
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - libmecab2
+    - mysql-client
+    - mysql-server
+  when: pdns_backend == "mysql" and mysql_installation
+
+- name: Start And Enable Mysql Service
+  ansible.builtin.service:
+    name: mysql
+    state: started
+    enabled: yes
+
+# - name: Start And Disable systemd-resolve Service
+#   ansible.builtin.service:
+#     name: systemd-resolved
+#     state: stopped
+#     enabled: no
+#     masked: yes
+
+# - name: Start And Enable pdns Service
+#   ansible.builtin.service:
+#     name: pdns
+#     state: restarted
+#     enabled: yes
+
+# - name: Start And Enable dnsdist Service
+#   ansible.builtin.service:
+#     name: dnsdist
+#     state: restarted
+#     enabled: yes
+
+# - name: Gather PowerDNS facts to verify installation
+#   ansible.builtin.command: pdnsutil --version
+#   register: pdns_version
+#   ignore_errors: yes
+
+# - name: Fail if PowerDNS is not installed
+#   ansible.builtin.fail:
+#     msg: "PowerDNS installation failed."
+#   when: pdns_version.rc != 0
+
+# - name: Show installed PowerDNS version
+#   ansible.builtin.debug:
+#     msg: "Installed PowerDNS version: {{ pdns_version.stdout }}"

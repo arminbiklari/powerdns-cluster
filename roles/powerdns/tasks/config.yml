@@ -1,0 +1,240 @@
+---
+- name: Install PyMySQL
+  ansible.builtin.pip:
+    name:
+      - PyMySQL
+    state: present
+
+- name: Gather if PowerDNS in installed
+  ansible.builtin.service_facts:
+
+- name: configuration mysqld.cnf
+  ansible.builtin.template:
+    src: mysqld.cnf.j2
+    dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+  notify:
+  - Restart mysql
+
+
+- name: Setup Mysql
+  block:
+  - name: Update mysql password for superuser root
+    community.mysql.mysql_user:
+      host: "{{ ansible_host }}"
+      name: root
+      password: "{{ mysql_root_user_password }}"
+      # login_unix_socket: /var/run/mysqld/mysqld.sock
+      check_implicit_admin: true
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+    ignore_errors: true
+      
+  - name: Create database for PowerDNS
+    community.mysql.mysql_db:
+      name: "{{ pdns_mysql_dbname }}"
+      login_user: root
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_password: "{{ mysql_root_user_password }}"
+      state: present
+
+  - name: Create MySQL user for PowerDNS
+    community.mysql.mysql_user:
+      host: "{{ ansible_host }}"
+      name: "{{ pdns_mysql_user }}"
+      password: "{{ pdns_mysql_password }}"
+      priv: "{{ pdns_mysql_dbname }}.*:ALL"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      state: present
+
+  - name: Create PowerDNS domains table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS domains (
+          id INT AUTO_w REMENT,
+          name VARCHAR(255) NOT NULL,
+          master VARCHAR(128) DEFAULT NULL,
+          last_check INT DEFAULT NULL,
+          type VARCHAR(8) NOT NULL,
+          notified_serial INT UNSIGNED DEFAULT NULL,
+          account VARCHAR(40) CHARACTER SET 'utf8' DEFAULT NULL,
+          options VARCHAR(64000) DEFAULT NULL,
+          catalog VARCHAR(255) DEFAULT NULL,
+          PRIMARY KEY (id),
+          UNIQUE INDEX name_index (name),
+          INDEX catalog_idx (catalog)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+
+  - name: Create PowerDNS records table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS records (
+          id                    BIGINT AUTO_INCREMENT,
+          domain_id             INT DEFAULT NULL,
+          name                  VARCHAR(255) DEFAULT NULL,
+          type                  VARCHAR(10) DEFAULT NULL,
+          content               VARCHAR(64000) DEFAULT NULL,
+          ttl                   INT DEFAULT NULL,
+          prio                  INT DEFAULT NULL,
+          disabled              TINYINT(1) DEFAULT 0,
+          ordername             VARCHAR(255) BINARY DEFAULT NULL,
+          auth                  TINYINT(1) DEFAULT 1,
+          PRIMARY KEY (id),
+          INDEX nametype_index (name,type),
+          INDEX domain_id (domain_id),
+          INDEX ordername (ordername)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+
+  - name: Create PowerDNS supermasters table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS supermasters (
+          ip                    VARCHAR(64) NOT NULL,
+          nameserver            VARCHAR(255) NOT NULL,
+          account               VARCHAR(40) CHARACTER SET 'utf8' NOT NULL,
+          PRIMARY KEY (ip, nameserver)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+
+  - name: Create PowerDNS comments table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS comments (
+          id                    INT AUTO_INCREMENT,
+          domain_id             INT NOT NULL,
+          name                  VARCHAR(255) NOT NULL,
+          type                  VARCHAR(10) NOT NULL,
+          modified_at           INT NOT NULL,
+          account               VARCHAR(40) CHARACTER SET 'utf8' DEFAULT NULL,
+          comment               TEXT CHARACTER SET 'utf8' NOT NULL,
+          PRIMARY KEY (id),
+          INDEX comments_name_type_idx (name, type),
+          INDEX comments_order_idx (domain_id, modified_at)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+
+
+  - name: Create PowerDNS domainmetadata table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS domainmetadata (
+          id                    INT AUTO_INCREMENT,
+          domain_id             INT NOT NULL,
+          kind                  VARCHAR(32),
+          content               TEXT,
+          PRIMARY KEY (id),
+          INDEX domainmetadata_idx (domain_id, kind)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+
+  - name: Create PowerDNS cryptokeys table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS cryptokeys (
+          id                    INT AUTO_INCREMENT,
+          domain_id             INT NOT NULL,
+          flags                 INT NOT NULL,
+          active                BOOL,
+          published             BOOL DEFAULT 1,
+          content               TEXT,
+          PRIMARY KEY(id),
+          INDEX domainidindex (domain_id)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+
+  - name: Create PowerDNS tsigkeys table
+    mysql_query:
+      login_host: "{{ ansible_host }}"
+      login_user: root
+      login_password: "{{ mysql_root_user_password }}"
+      config_file: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+      login_db: "{{ pdns_mysql_dbname }}"
+      query: |
+        CREATE TABLE IF NOT EXISTS tsigkeys (
+          id                    INT AUTO_INCREMENT,
+          name                  VARCHAR(255),
+          algorithm             VARCHAR(50),
+          secret                VARCHAR(255),
+          PRIMARY KEY (id),
+          UNIQUE INDEX namealgoindex (name, algorithm)
+        ) Engine=InnoDB CHARACTER SET 'latin1';
+  tags: 
+    - pdns-mysql
+    - pdns
+  notify:
+  - Restart mysql
+
+- name: Setup PowerDNS 
+  block:
+  - name: SetUp pdns.conf For PRIMARY SERVERS
+    ansible.builtin.template:
+      src: pdns-primary.conf.j2
+      dest: /etc/powerdns/pdns.conf
+      owner: root
+      group: root
+      mode: '0644'
+    when: inventory_hostname in groups['primary'] # | bool and ansible_facts.services[item + '.service'] is defined # and initial_etup == true
+    notify: Restart PowerDNS
+
+  - name: SetUp pdns.conf For SECONDARY SERVERS
+    ansible.builtin.template:
+      src: pdns-secondary.conf.j2
+      dest: /etc/powerdns/pdns.conf
+      owner: root
+      group: root
+      mode: '0644'
+    when: inventory_hostname in groups['secondaries'] #  | bool and ansible_facts.services[item + '.service'] is defined # and initial_etup == true
+    notify: Restart PowerDNS
+
+  - name: Disable Resolve.d
+    ansible.builtin.systemd:
+      name: systemd-resolved
+      enabled: false
+      state: stopped
+      masked: true
+
+  - name: Start And Enable pdns Service
+    ansible.builtin.service:
+      name: pdns
+      state: restarted
+      enabled: yes
+
+  - name: Gather PowerDNS facts to verify installation
+    ansible.builtin.command: pdnsutil --version
+    register: pdns_version
+    ignore_errors: yes
+
+  - name: Fail if PowerDNS is not installed
+    ansible.builtin.fail:
+      msg: "PowerDNS installation failed."
+    when: pdns_version.rc != 0
+
+  - name: Show installed PowerDNS version
+    ansible.builtin.debug:
+      msg: "Installed PowerDNS version: {{ pdns_version.stdout }}"
